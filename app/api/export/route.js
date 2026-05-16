@@ -12,12 +12,16 @@ export async function POST(req) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { language = "ja" } = await req.json();
+  const { language = "ja", accessKey, accessSecret } = await req.json();
+
+  if (!accessKey || !accessSecret) {
+    return NextResponse.json({ error: "Access Key と Access Secret が必要です" }, { status: 400 });
+  }
   const email = session.user?.email ?? "unknown";
 
   try {
     await initSheet(process.env.GOOGLE_SHEETS_SPREADSHEET_ID);
-    const { csv, count } = await generateCSV(language);
+    const { csv, count } = await generateCSV(language, accessKey, accessSecret);
     await appendLog({ email, language, count, status: "成功" });
 
     const yyyymmdd = new Date().toISOString().slice(0, 10).replace(/-/g, "");
