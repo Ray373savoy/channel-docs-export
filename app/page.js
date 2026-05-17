@@ -15,9 +15,7 @@ const FILTERS = [
   { key: "unpublished",label: "非公開" },
   { key: "new",        label: "新規（30日以内）" },
   { key: "stale",      label: "長期未更新（90日超）" },
-  { key: "no_summary", label: "サマリーなし" },
   { key: "no_body",    label: "本文なし" },
-  { key: "no_views",   label: "閲覧数 0" },
 ];
 
 const DEFAULT_COLS = new Set(["title","state","category","author","summary","createdAt","updatedAt","viewCount","bodyLength"]);
@@ -33,8 +31,10 @@ function relativeDate(ts) {
 }
 
 function UpdateChart({ articles }) {
-  const WEEKS = 12;
-  const BW = 18, GAP = 3, H = 44;
+  const WEEKS = 26; // ~6ヶ月
+  const H = 52, PL = 28, VW = 540, chartW = VW - PL - 6;
+  const slotW = chartW / WEEKS;
+  const BW = Math.max(6, Math.floor(slotW - 2));
   const now = Date.now();
   const bins = Array(WEEKS).fill(0);
   articles.forEach((a) => {
@@ -45,37 +45,44 @@ function UpdateChart({ articles }) {
   });
   const ordered = [...bins].reverse();
   const max = Math.max(...ordered, 1);
-  const W = WEEKS * (BW + GAP) - GAP;
   return (
-    <div>
-      <p className="text-xs text-slate-500 mb-1.5">過去 12 週の更新頻度</p>
-      <svg width={W} height={H + 12} className="overflow-visible">
+    <div className="w-full">
+      <p className="text-xs text-slate-500 mb-1">過去 6 ヶ月の更新頻度（週単位）</p>
+      <svg viewBox={`0 0 ${VW} ${H + 22}`} style={{ width: "100%", height: `${H + 22}px` }} preserveAspectRatio="none">
+        {/* Y軸ラベル */}
+        <text x={7} y={H / 2 + 4} fontSize="8" fill="#475569" textAnchor="middle"
+          transform={`rotate(-90, 7, ${H / 2})`}>更新回数</text>
+        <text x={PL - 3} y={9} textAnchor="end" fontSize="8" fill="#475569">{max}</text>
+        <text x={PL - 3} y={H + 1} textAnchor="end" fontSize="8" fill="#475569">0</text>
+        {/* バー */}
         {ordered.map((count, i) => {
           const bh = Math.max(2, (count / max) * H);
-          const x = i * (BW + GAP);
+          const x = PL + i * slotW;
           return (
             <g key={i}>
               <rect x={x} y={H - bh} width={BW} height={bh} rx={2}
                 fill={count > 0 ? "#6366f1" : "#1e293b"} />
               {count > 0 && (
-                <text x={x + BW / 2} y={H - bh - 3} textAnchor="middle" fontSize="8" fill="#94a3b8">{count}</text>
+                <text x={x + BW / 2} y={H - bh - 2} textAnchor="middle" fontSize="7" fill="#94a3b8">{count}</text>
               )}
             </g>
           );
         })}
-        <text x={0}  y={H + 11} fontSize="8" fill="#475569">12週前</text>
-        <text x={W}  y={H + 11} fontSize="8" fill="#475569" textAnchor="end">今週</text>
+        {/* X軸ラベル */}
+        <text x={PL} y={H + 15} fontSize="8" fill="#475569">6ヶ月前</text>
+        <text x={PL + chartW * 0.5} y={H + 15} fontSize="8" fill="#475569" textAnchor="middle">3ヶ月前</text>
+        <text x={VW - 6} y={H + 15} fontSize="8" fill="#475569" textAnchor="end">今週</text>
       </svg>
     </div>
   );
 }
 
-function SortTh({ label, field, sort, onSort, className = "" }) {
+function SortTh({ label, field, sort, onSort, className = "", center = false }) {
   const active = sort.field === field;
   return (
     <th
       onClick={() => onSort(field)}
-      className={`text-left px-2 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-200 transition-colors select-none whitespace-nowrap ${className}`}
+      className={`${center ? "text-center" : "text-left"} px-2 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-200 transition-colors select-none whitespace-nowrap ${className}`}
     >
       {label}
       <span className="ml-0.5 opacity-50">{active ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}</span>
@@ -92,7 +99,7 @@ export default function HomePage() {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState({ field: "updatedAt", dir: "desc" });
-  const [showColPicker, setShowColPicker] = useState(false);
+  const [showColPicker, setShowColPicker] = useState(true);
   const [selCols, setSelCols] = useState(
     Object.fromEntries(ALL_CSV_COLS.map((c) => [c.key, DEFAULT_COLS.has(c.key)]))
   );
@@ -325,22 +332,24 @@ export default function HomePage() {
                 <p className="text-xs text-slate-600">Documents → スペース設定 → API Keys</p>
               </div>
 
-              {/* Language */}
-              <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/60 rounded-2xl p-4 shadow-2xl">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">言語</p>
-                <div className="flex gap-1 bg-slate-900/40 p-0.5 rounded-lg">
-                  {LANGS.map(({ code, flag }) => (
-                    <button key={code}
-                      onClick={() => { setLanguage(code); setPhase("idle"); setPreviews([]); setError(null); }}
-                      className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-all ${
-                        language === code ? "bg-indigo-500 text-white shadow-sm" : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
-                      }`}
-                    >
-                      <span>{flag}</span><span className="uppercase">{code}</span>
-                    </button>
-                  ))}
+              {/* Language — 結果表示前のみ */}
+              {previews.length === 0 && (
+                <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/60 rounded-2xl p-4 shadow-2xl">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">言語</p>
+                  <div className="flex gap-1 bg-slate-900/40 p-0.5 rounded-lg">
+                    {LANGS.map(({ code, flag }) => (
+                      <button key={code}
+                        onClick={() => { setLanguage(code); setPhase("idle"); setPreviews([]); setError(null); }}
+                        className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-all ${
+                          language === code ? "bg-indigo-500 text-white shadow-sm" : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
+                        }`}
+                      >
+                        <span>{flag}</span><span className="uppercase">{code}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Fetch */}
               <button onClick={handleFetch} disabled={!allReady || phase === "fetching"}
@@ -388,11 +397,6 @@ export default function HomePage() {
                             <div key={i} className="flex items-center gap-2">
                               <span className="text-lg select-none">📂</span>
                               <span className="text-white font-semibold">{p.space.name}</span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full border ${
-                                p.space.publishState === "published"
-                                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                                  : "bg-slate-600/40 text-slate-400 border-slate-600/40"
-                              }`}>{p.space.publishState === "published" ? "公開" : "非公開"}</span>
                               <span className="text-slate-500 text-xs">{p.count}件</span>
                             </div>
                           )
@@ -414,29 +418,23 @@ export default function HomePage() {
                             : "⬇ CSVをダウンロード"
                           }
                         </button>
-                        <button onClick={() => setShowColPicker((v) => !v)}
-                          className="text-xs text-slate-500 hover:text-slate-300 transition-colors">
-                          ⚙ カラム設定
-                        </button>
                       </div>
                     </div>
 
                     {/* Column picker */}
-                    {showColPicker && (
-                      <div className="mt-3 pt-3 border-t border-slate-700/40">
-                        <p className="text-xs font-semibold text-slate-400 mb-2">CSVに含めるカラム</p>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                          {ALL_CSV_COLS.map((col) => (
-                            <label key={col.key} className="flex items-center gap-1.5 cursor-pointer">
-                              <input type="checkbox" checked={selCols[col.key]}
-                                onChange={(e) => setSelCols((s) => ({ ...s, [col.key]: e.target.checked }))}
-                                className="w-3 h-3 accent-indigo-500" />
-                              <span className={`text-xs transition-colors ${selCols[col.key] ? "text-slate-300" : "text-slate-600"}`}>{col.label}</span>
-                            </label>
-                          ))}
-                        </div>
+                    <div className="mt-3 pt-3 border-t border-slate-700/40">
+                      <p className="text-xs font-semibold text-slate-400 mb-2">CSVに含めるカラム</p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                        {ALL_CSV_COLS.map((col) => (
+                          <label key={col.key} className="flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" checked={selCols[col.key]}
+                              onChange={(e) => setSelCols((s) => ({ ...s, [col.key]: e.target.checked }))}
+                              className="w-3 h-3 accent-indigo-500" />
+                            <span className={`text-xs transition-colors ${selCols[col.key] ? "text-slate-300" : "text-slate-600"}`}>{col.label}</span>
+                          </label>
+                        ))}
                       </div>
-                    )}
+                    </div>
 
                     {/* Update chart */}
                     {allArticles.length > 0 && (
@@ -469,22 +467,22 @@ export default function HomePage() {
                     ) : (
                       <table className="w-full text-sm table-fixed">
                         <colgroup>
-                          <col />
-                          {multiSpace && <col style={{ width: "90px" }} />}
-                          <col style={{ width: "62px" }} />
-                          <col style={{ width: "60px" }} />
-                          <col style={{ width: "72px" }} />
-                          <col style={{ width: "72px" }} />
-                          <col style={{ width: "80px" }} />
+                          <col style={{ width: multiSpace ? "26%" : "30%" }} />
+                          {multiSpace && <col style={{ width: "12%" }} />}
+                          <col style={{ width: "11%" }} />
+                          <col style={{ width: "9%" }} />
+                          <col style={{ width: "12%" }} />
+                          <col style={{ width: "12%" }} />
+                          <col style={{ width: multiSpace ? "18%" : "26%" }} />
                         </colgroup>
                         <thead className="sticky top-0 bg-slate-900/90 backdrop-blur-sm z-10">
                           <tr>
                             <th className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">タイトル</th>
                             {multiSpace && <th className="text-left px-2 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">スペース</th>}
-                            <SortTh label="状態"   field="state"     sort={sort} onSort={handleSort} className="" />
-                            <SortTh label="閲覧数" field="viewCount" sort={sort} onSort={handleSort} className="" />
-                            <SortTh label="更新日" field="updatedAt" sort={sort} onSort={handleSort} className="" />
-                            <SortTh label="作成日" field="createdAt" sort={sort} onSort={handleSort} className="" />
+                            <SortTh label="状態"   field="state"     sort={sort} onSort={handleSort} />
+                            <SortTh label="閲覧数" field="viewCount" sort={sort} onSort={handleSort} center />
+                            <SortTh label="更新日" field="updatedAt" sort={sort} onSort={handleSort} />
+                            <SortTh label="作成日" field="createdAt" sort={sort} onSort={handleSort} />
                             <th className="text-left px-2 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">執筆者</th>
                           </tr>
                         </thead>
@@ -516,7 +514,7 @@ export default function HomePage() {
                                     a.state === "published" ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-600/40 text-slate-400"
                                   }`}>{a.state === "published" ? "公開" : "非公開"}</span>
                                 </td>
-                                <td className="px-2 py-3 text-xs whitespace-nowrap">
+                                <td className="px-2 py-3 text-xs whitespace-nowrap text-center">
                                   {a.viewCount > 0
                                     ? <span className="text-slate-300">{a.viewCount.toLocaleString()}</span>
                                     : <span className="text-slate-600">0</span>}
