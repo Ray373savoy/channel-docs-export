@@ -75,7 +75,7 @@ function SortTh({ label, field, sort, onSort, className = "" }) {
   return (
     <th
       onClick={() => onSort(field)}
-      className={`text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-200 transition-colors select-none whitespace-nowrap ${className}`}
+      className={`text-left px-2 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-200 transition-colors select-none whitespace-nowrap ${className}`}
     >
       {label}
       <span className="ml-0.5 opacity-50">{active ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}</span>
@@ -463,20 +463,29 @@ export default function HomePage() {
                   </div>
 
                   {/* Table */}
-                  <div className="overflow-auto" style={{ maxHeight: "420px" }}>
+                  <div className="overflow-x-hidden overflow-y-auto" style={{ maxHeight: "420px" }}>
                     {sorted.length === 0 ? (
                       <div className="py-16 text-center text-slate-500 text-sm">該当する記事がありません</div>
                     ) : (
-                      <table className="w-full text-sm min-w-[680px]">
+                      <table className="w-full text-sm table-fixed">
+                        <colgroup>
+                          <col />
+                          {multiSpace && <col style={{ width: "90px" }} />}
+                          <col style={{ width: "62px" }} />
+                          <col style={{ width: "60px" }} />
+                          <col style={{ width: "72px" }} />
+                          <col style={{ width: "72px" }} />
+                          <col style={{ width: "80px" }} />
+                        </colgroup>
                         <thead className="sticky top-0 bg-slate-900/90 backdrop-blur-sm z-10">
                           <tr>
-                            <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">タイトル</th>
-                            {multiSpace && <th className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider w-24">スペース</th>}
-                            <SortTh label="状態"   field="state"     sort={sort} onSort={handleSort} className="w-16" />
-                            <SortTh label="閲覧数" field="viewCount" sort={sort} onSort={handleSort} className="w-20" />
-                            <SortTh label="更新日" field="updatedAt" sort={sort} onSort={handleSort} className="w-24" />
-                            <SortTh label="作成日" field="createdAt" sort={sort} onSort={handleSort} className="w-24" />
-                            <th className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider w-20">執筆者</th>
+                            <th className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">タイトル</th>
+                            {multiSpace && <th className="text-left px-2 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">スペース</th>}
+                            <SortTh label="状態"   field="state"     sort={sort} onSort={handleSort} className="" />
+                            <SortTh label="閲覧数" field="viewCount" sort={sort} onSort={handleSort} className="" />
+                            <SortTh label="更新日" field="updatedAt" sort={sort} onSort={handleSort} className="" />
+                            <SortTh label="作成日" field="createdAt" sort={sort} onSort={handleSort} className="" />
+                            <th className="text-left px-2 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">執筆者</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/30">
@@ -484,14 +493,14 @@ export default function HomePage() {
                             const url = articleUrl(a);
                             return (
                               <tr key={`${a.spaceId}-${a.id}`} className="hover:bg-slate-700/20 transition-colors">
-                                <td className="px-5 py-3 max-w-xs">
+                                <td className="px-3 py-3 min-w-0">
                                   {url ? (
                                     <a href={url} target="_blank" rel="noopener noreferrer"
-                                      className="text-white font-medium hover:text-indigo-300 transition-colors line-clamp-1" title={a.title}>
+                                      className="text-white font-medium hover:text-indigo-300 transition-colors line-clamp-1 block" title={a.title}>
                                       {a.title || "(タイトルなし)"}
                                     </a>
                                   ) : (
-                                    <span className="text-white font-medium line-clamp-1">{a.title || "(タイトルなし)"}</span>
+                                    <span className="text-white font-medium line-clamp-1 block">{a.title || "(タイトルなし)"}</span>
                                   )}
                                   <div className="flex gap-1 mt-0.5 flex-wrap">
                                     {a.isNew      && <Badge color="blue">新規</Badge>}
@@ -501,20 +510,20 @@ export default function HomePage() {
                                     {a.bodyLength > 0 && <span className="text-xs text-slate-600">{a.bodyLength.toLocaleString()}字</span>}
                                   </div>
                                 </td>
-                                {multiSpace && <td className="px-3 py-3 text-slate-400 text-xs truncate max-w-[80px]">{a.spaceName}</td>}
-                                <td className="px-3 py-3">
-                                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                {multiSpace && <td className="px-2 py-3 text-slate-400 text-xs truncate">{a.spaceName}</td>}
+                                <td className="px-2 py-3">
+                                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                                     a.state === "published" ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-600/40 text-slate-400"
                                   }`}>{a.state === "published" ? "公開" : "非公開"}</span>
                                 </td>
-                                <td className="px-3 py-3 text-xs whitespace-nowrap">
+                                <td className="px-2 py-3 text-xs whitespace-nowrap">
                                   {a.viewCount > 0
                                     ? <span className="text-slate-300">{a.viewCount.toLocaleString()}</span>
                                     : <span className="text-slate-600">0</span>}
                                 </td>
-                                <td className="px-3 py-3 text-slate-400 text-xs whitespace-nowrap">{relativeDate(a.updatedAt)}</td>
-                                <td className="px-3 py-3 text-slate-400 text-xs whitespace-nowrap">{relativeDate(a.createdAt)}</td>
-                                <td className="px-3 py-3 text-slate-500 text-xs truncate max-w-[80px]">{a.author || "-"}</td>
+                                <td className="px-2 py-3 text-slate-400 text-xs whitespace-nowrap">{relativeDate(a.updatedAt)}</td>
+                                <td className="px-2 py-3 text-slate-400 text-xs whitespace-nowrap">{relativeDate(a.createdAt)}</td>
+                                <td className="px-2 py-3 text-slate-500 text-xs truncate">{a.author || "-"}</td>
                               </tr>
                             );
                           })}
